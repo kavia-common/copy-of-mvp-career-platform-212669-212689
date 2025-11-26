@@ -15,6 +15,7 @@ from src.api.routers.competencies import router as competencies_router
 from src.api.routers.gap_analysis import router as gap_router
 from src.api.routers.development_plan import router as plan_router
 from src.api.routers.audit_logs import router as audit_router
+from src.api.routers.role_adjacency import router as role_adjacency_router
 from src.core.config import get_settings
 from src.db.base import Base
 from src.db.session import get_engine
@@ -143,3 +144,4 @@ app.include_router(competencies_router)
 app.include_router(gap_router)
 app.include_router(plan_router)
 app.include_router(audit_router)
+app.include_router(role_adjacency_router)

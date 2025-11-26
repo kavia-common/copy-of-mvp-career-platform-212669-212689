@@ -1,0 +1,32 @@
+[
+  {
+    "source_role_id": "chief-architect",
+    "target_role_id": "cto",
+    "weight": 0.92,
+    "rationale": "Executive leadership adjacency with strategy and architecture ownership overlap."
+  },
+  {
+    "source_role_id": "chief-architect",
+    "target_role_id": "vp-engineering",
+    "weight": 0.86,
+    "rationale": "Delivery leadership and technical vision alignment."
+  },
+  {
+    "source_role_id": "vp-engineering",
+    "target_role_id": "cto",
+    "weight": 0.88,
+    "rationale": "Progression from delivery to enterprise-wide technology strategy."
+  },
+  {
+    "source_role_id": "platform-architect",
+    "target_role_id": "chief-architect",
+    "weight": 0.82,
+    "rationale": "Scope expansion across domains and standards."
+  },
+  {
+    "source_role_id": "engineering-manager",
+    "target_role_id": "vp-engineering",
+    "weight": 0.75,
+    "rationale": "Multi-team leadership and org scaling experience."
+  }
+]

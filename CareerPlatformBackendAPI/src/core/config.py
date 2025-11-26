@@ -53,6 +53,10 @@ class Settings:
     JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
     JWT_ISSUER: str = os.getenv("JWT_ISSUER", "career-platform")
 
+    # Role Mapper Service integration
+    ROLE_MAPPER_BASE_URL: str = os.getenv("ROLE_MAPPER_BASE_URL", "http://localhost:4001")
+    INTERNAL_TOKEN: str = os.getenv("INTERNAL_TOKEN", "dev-internal-token")
+
 
 # PUBLIC_INTERFACE
 @lru_cache
