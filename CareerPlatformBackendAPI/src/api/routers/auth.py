@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import get_settings
 from src.core.security import create_access_token, get_current_user, hash_password, verify_password
 from src.db.session import get_session
 from src.models.user import User
@@ -18,21 +19,66 @@ router_public = APIRouter(prefix="/api/v1", tags=["Auth"])
 
 
 class RegisterRequest(BaseModel):
-    """Registration payload for a new user."""
-    email: EmailStr = Field(..., description="Email address")
+    """
+    Registration payload for a new user.
+
+    Note: Email validation is relaxed by default to allow broader formats (e.g., 'name@15404').
+    When STRICT_EMAIL_VALIDATION=true, strict RFC-style validation is enforced.
+    """
+    email: str = Field(..., description="Email string (relaxed; requires '@' unless STRICT_EMAIL_VALIDATION=true)")
     name: str = Field(..., description="Full name")
     password: str = Field(..., description="Password (stored as salted hash; never returned)")
+
+    @field_validator("email")
+    @classmethod
+    def _validate_email(cls, v: str) -> str:
+        if not isinstance(v, str) or not v.strip():
+            raise ValueError("email must be a non-empty string")
+        s = v.strip()
+        settings = get_settings()
+        if settings.STRICT_EMAIL_VALIDATION:
+            # Use email_validator for strict RFC validation when enabled
+            try:
+                from email_validator import validate_email  # type: ignore
+                validate_email(s, check_deliverability=False)
+            except Exception as e:
+                raise ValueError("invalid email format") from e
+        else:
+            if "@" not in s:
+                raise ValueError("email must contain '@' (relaxed validation)")
+        return s
 
 
 class LoginRequest(BaseModel):
     """
     Login payload for authentication.
 
-    Requires email and password.
+    Requires email and password. Email validation is relaxed by default (presence of '@' only);
+    set STRICT_EMAIL_VALIDATION=true to enforce strict RFC validation.
     """
     # Make fields optional to allow custom 400 handling for missing fields (avoids FastAPI 422).
-    email: EmailStr | None = Field(None, description="Email address")
+    email: str | None = Field(None, description="Email string (relaxed; requires '@' unless STRICT_EMAIL_VALIDATION=true)")
     password: str | None = Field(None, description="Password")
+
+    @field_validator("email")
+    @classmethod
+    def _validate_email_optional(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        s = v.strip()
+        if not s:
+            return s  # missing/empty is handled as 400 in the endpoint
+        settings = get_settings()
+        if settings.STRICT_EMAIL_VALIDATION:
+            try:
+                from email_validator import validate_email  # type: ignore
+                validate_email(s, check_deliverability=False)
+            except Exception as e:
+                raise ValueError("invalid email format") from e
+        else:
+            if "@" not in s:
+                raise ValueError("email must contain '@' (relaxed validation)")
+        return s
 
 
 class TokenResponse(BaseModel):
@@ -46,7 +92,12 @@ class TokenResponse(BaseModel):
     response_model=UserRead,
     status_code=status.HTTP_201_CREATED,
     summary="Register a new user",
-    description="Register a new user account with name, email, and password. The password is stored as a salted hash and is never returned.",
+    description=(
+        "Register a new user account with name, email, and password. "
+        "Email validation is relaxed by default (presence of '@' only); "
+        "set STRICT_EMAIL_VALIDATION=true to enforce strict RFC-style validation. "
+        "The password is stored as a salted hash and is never returned."
+    ),
 )
 async def register(payload: RegisterRequest, session: AsyncSession = Depends(get_session)) -> UserRead:
     """

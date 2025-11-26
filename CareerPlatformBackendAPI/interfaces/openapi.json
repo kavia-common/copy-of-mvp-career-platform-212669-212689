@@ -212,7 +212,7 @@
             }
           },
           "400": {
-            "description": "Invalid request (identifier or password missing)"
+            "description": "Invalid request (email or password missing)"
           },
           "401": {
             "description": "Invalid credentials"
@@ -1301,22 +1301,31 @@
       "LoginRequest": {
         "properties": {
           "email": {
-            "type": "string",
-            "format": "email",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Email",
-            "description": "Email address"
+            "description": "Email string (relaxed; presence of '@' only unless STRICT_EMAIL_VALIDATION=true)"
           },
           "password": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Password",
             "description": "Password"
           }
         },
         "type": "object",
-        "required": [
-          "email",
-          "password"
-        ],
         "title": "LoginRequest",
         "description": "Login payload for authentication.\n\nRequires email and password."
       },
@@ -1358,9 +1367,8 @@
         "properties": {
           "email": {
             "type": "string",
-            "format": "email",
             "title": "Email",
-            "description": "Email address"
+            "description": "Email string (relaxed; presence of '@' only unless STRICT_EMAIL_VALIDATION=true)"
           },
           "name": {
             "type": "string",
@@ -1646,9 +1654,8 @@
         "properties": {
           "email": {
             "type": "string",
-            "format": "email",
             "title": "Email",
-            "description": "User email address"
+            "description": "User email string (relaxed; presence of '@' only unless STRICT_EMAIL_VALIDATION=true)"
           },
           "name": {
             "type": "string",

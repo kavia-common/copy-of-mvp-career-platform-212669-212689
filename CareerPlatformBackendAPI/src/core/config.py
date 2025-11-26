@@ -46,6 +46,9 @@ class Settings:
     APP_NAME: str = os.getenv("APP_NAME", "MVP Career Platform Backend")
     APP_VERSION: str = os.getenv("APP_VERSION", "1.0.0")
     ALLOW_SEED_ENDPOINT: bool = _env_flag("ALLOW_SEED_ENDPOINT", False)
+    # When false (default), email validation is relaxed (only '@' is required).
+    # When true, strict RFC-style validation is enforced via email_validator.
+    STRICT_EMAIL_VALIDATION: bool = _env_flag("STRICT_EMAIL_VALIDATION", False)
 
     # JWT/Auth settings (MVP: symmetric HS256)
     JWT_SECRET: str = os.getenv("JWT_SECRET", "dev-change-me")

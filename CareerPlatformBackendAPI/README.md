@@ -33,6 +33,11 @@ Copy `.env.example` to `.env` and adjust as necessary. Common entries:
 # Optional helper to enable seeding endpoints
 ALLOW_SEED_ENDPOINT=true
 
+# Optional: toggle email validation strictness for auth & user schemas.
+# When false (default), email validation is relaxed and only checks for the presence of '@'.
+# When true, strict RFC-style validation is enforced using the email_validator package.
+STRICT_EMAIL_VALIDATION=false
+
 # Optional: override default SQLite path
 # DATABASE_URL=sqlite+aiosqlite:///./data/app.db
 ```
