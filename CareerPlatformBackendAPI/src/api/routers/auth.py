@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -75,11 +75,12 @@ async def login(payload: LoginRequest, session: AsyncSession = Depends(get_sessi
 @router.post(
     "/logout",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
     summary="User logout",
     description="Stateless logout. Clients should discard the token.",
 )
-async def logout(_: User = Depends(get_current_user)) -> None:
+async def logout(_: User = Depends(get_current_user)) -> Response:
     """
     No server-side session to invalidate in MVP. Clients should discard tokens.
     """
-    return None
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
