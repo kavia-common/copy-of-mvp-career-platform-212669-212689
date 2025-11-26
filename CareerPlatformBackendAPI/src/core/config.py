@@ -47,6 +47,12 @@ class Settings:
     APP_VERSION: str = os.getenv("APP_VERSION", "1.0.0")
     ALLOW_SEED_ENDPOINT: bool = _env_flag("ALLOW_SEED_ENDPOINT", False)
 
+    # JWT/Auth settings (MVP: symmetric HS256)
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "dev-change-me")
+    JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
+    JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
+    JWT_ISSUER: str = os.getenv("JWT_ISSUER", "career-platform")
+
 
 # PUBLIC_INTERFACE
 @lru_cache

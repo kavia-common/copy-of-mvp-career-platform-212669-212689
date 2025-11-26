@@ -10,6 +10,11 @@ from sqlalchemy.orm import sessionmaker
 
 from src.api.routers.users import router as users_router
 from src.api.routers.roles import router as roles_router
+from src.api.routers.auth import router as auth_router
+from src.api.routers.competencies import router as competencies_router
+from src.api.routers.gap_analysis import router as gap_router
+from src.api.routers.development_plan import router as plan_router
+from src.api.routers.audit_logs import router as audit_router
 from src.core.config import get_settings
 from src.db.base import Base
 from src.db.session import get_engine
@@ -28,8 +33,13 @@ settings = get_settings()
 
 tags_metadata = [
     {"name": "Health", "description": "Health and service status"},
+    {"name": "Auth", "description": "Authentication endpoints (JWT-based)"},
     {"name": "Users", "description": "Simple CRUD endpoints to validate DB data access"},
     {"name": "Roles", "description": "Manage role definitions persisted in the database"},
+    {"name": "Competencies", "description": "List and assess competencies"},
+    {"name": "Gap Analysis", "description": "Compute competency gaps for a target role"},
+    {"name": "Development Plan", "description": "Generate and export development plans"},
+    {"name": "Audit", "description": "Audit log retrieval (admin)"},
 ]
 
 app = FastAPI(
@@ -126,5 +136,10 @@ def health_check() -> dict:
 
 
 # Register routers
+app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(roles_router)
+app.include_router(competencies_router)
+app.include_router(gap_router)
+app.include_router(plan_router)
+app.include_router(audit_router)

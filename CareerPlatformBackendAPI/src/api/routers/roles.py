@@ -3,9 +3,11 @@ from __future__ import annotations
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
+from src.core.security import get_current_user
 from src.db.session import get_session
 from src.models.role import Role
 from src.repositories.roles import create_role as repo_create_role
@@ -29,6 +31,12 @@ def _to_role_read(entity: Role) -> RoleRead:
         source=entity.source,
         created_at=entity.created_at,
     )
+
+
+class RoleSelection(BaseModel):
+    """Payload to select current and target roles."""
+    currentRoleId: str = Field(..., description="Current role identifier")
+    targetRoleId: str = Field(..., description="Target role identifier")
 
 
 # PUBLIC_INTERFACE
@@ -134,3 +142,25 @@ async def seed_role(
         ),
     )
     return _to_role_read(role)
+
+
+# PUBLIC_INTERFACE
+@router.post(
+    "/select",
+    summary="Select current and target roles",
+    description="Validate and record role selection (MVP does not persist; audits only).",
+)
+async def select_roles(
+    payload: RoleSelection,
+    session: AsyncSession = Depends(get_session),
+    user=Depends(get_current_user),
+) -> dict:
+    """
+    Validate that both roles exist and return a simple confirmation.
+    """
+    src = await get_role_by_id(session, payload.currentRoleId)
+    dst = await get_role_by_id(session, payload.targetRoleId)
+    if not src or not dst:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role not found")
+    # No persistence for MVP; the frontend should pass the selection to subsequent calls.
+    return {"status": "ok", "currentRoleId": payload.currentRoleId, "targetRoleId": payload.targetRoleId}
