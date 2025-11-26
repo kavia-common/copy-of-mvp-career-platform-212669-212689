@@ -25,34 +25,24 @@ def _normalize_to_asyncpg(url: str) -> str:
 
 def _build_database_url() -> str:
     """
-    Build the database URL with the following precedence:
-    1) DATABASE_URL (normalized to asyncpg for postgres)
-    2) POSTGRES_URL (normalized to asyncpg)
-    3) Discrete postgres env vars: POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, POSTGRES_HOST, POSTGRES_PORT
-    4) Fallback to SQLite (aiosqlite)
+    Build the database URL with the following precedence (SQLite-first migration):
+    1) DATABASE_URL if provided and using SQLite; normalizes "sqlite://" to "sqlite+aiosqlite://"
+    2) Fallback to bundled SQLite file (aiosqlite) at ./data/app.db
+
+    NOTE: PostgreSQL-specific environment variables (POSTGRES_URL, POSTGRES_*) are intentionally ignored
+    in this migration to avoid accidental connections to unavailable Postgres instances.
     """
-    # 1) Explicit DATABASE_URL
     env_url = os.getenv("DATABASE_URL")
     if env_url:
-        return _normalize_to_asyncpg(env_url)
+        # Normalize sqlite scheme for async usage
+        if env_url.startswith("sqlite+aiosqlite://"):
+            return env_url
+        if env_url.startswith("sqlite://"):
+            return "sqlite+aiosqlite://" + env_url[len("sqlite://") :]
+        # Non-sqlite URLs are ignored in this SQLite-first deployment
+        # to ensure the app always starts without external DB dependencies.
 
-    # 2) Combined postgres URL
-    pg_url = os.getenv("POSTGRES_URL")
-    if pg_url:
-        return _normalize_to_asyncpg(pg_url)
-
-    # 3) Discrete vars
-    user = os.getenv("POSTGRES_USER")
-    password = os.getenv("POSTGRES_PASSWORD")
-    database = os.getenv("POSTGRES_DB")
-    host = os.getenv("POSTGRES_HOST", "localhost")
-    # Prefer configured container port, fallback to 5432 if not set
-    port = os.getenv("POSTGRES_PORT", "5432")
-
-    if user and password and database:
-        return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}"
-
-    # 4) Fallback to SQLite
+    # Default to local SQLite file inside data/
     return "sqlite+aiosqlite:///./data/app.db"
 
 

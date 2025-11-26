@@ -1,44 +1,39 @@
 # CareerPlatformBackendAPI
 
-This backend is built with FastAPI. It supports PostgreSQL (async via `asyncpg`) if configured, and falls back to SQLite (async via `aiosqlite`) for local/MVP use.
+This backend is built with FastAPI. It now defaults to SQLite (async via `aiosqlite`) for local/MVP use to simplify setup and avoid external DB dependencies. PostgreSQL-specific configuration is disabled in this migration step.
 
 ## Database Configuration
 
-- Preferred (PostgreSQL async):
-  - Set one of:
-    - `DATABASE_URL=postgresql+asyncpg://USER:PASSWORD@HOST:PORT/DBNAME`
-    - `POSTGRES_URL=postgresql://USER:PASSWORD@HOST:PORT/DBNAME` (driver normalized automatically)
-    - Discrete vars:
-      - `POSTGRES_USER=...`
-      - `POSTGRES_PASSWORD=...`
-      - `POSTGRES_DB=...`
-      - `POSTGRES_HOST=localhost` (default)
-      - `POSTGRES_PORT=5432` (default)
-- Fallback (SQLite async):
-  - `DATABASE_URL=sqlite+aiosqlite:///./data/app.db`
+- Default (SQLite async, recommended for local/dev and MVP):
+  - Uses `sqlite+aiosqlite:///./data/app.db`
+  - Tables are created automatically at startup using `Base.metadata.create_all`.
+  - The `data/` directory is created on demand.
 
-Tables are created at startup using `Base.metadata.create_all` (no Alembic migrations in the MVP).
+- Optional override (SQLite only during this migration):
+  - Set `DATABASE_URL` to a SQLite URL. Examples:
+    - File DB:
+      - `DATABASE_URL=sqlite+aiosqlite:///./data/app.db`
+      - `DATABASE_URL=sqlite+aiosqlite:///./my_local.db`
+    - In-memory (ephemeral):
+      - `DATABASE_URL=sqlite+aiosqlite:///:memory:`
+    - If you supply a `sqlite://` URL, it will be normalized to `sqlite+aiosqlite://` automatically.
+
+- PostgreSQL:
+  - PostgreSQL environment variables (`POSTGRES_URL`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, etc.) are intentionally ignored in this migration to prevent accidental connections to unavailable instances.
+  - The `asyncpg` dependency is removed. If you later want to re-enable PostgreSQL async support, you will need to:
+    1) Add `asyncpg` back to `requirements.txt`
+    2) Provide a suitable async URL (e.g., `postgresql+asyncpg://USER:PASSWORD@HOST:PORT/DBNAME`)
+    3) Update configuration to honor Postgres env vars again.
 
 ## Environment
 
 Copy `.env.example` to `.env` and adjust as necessary. Common entries:
 
 ```
-# PostgreSQL (recommended for integration)
-# DATABASE_URL=postgresql+asyncpg://USER:PASSWORD@HOST:PORT/DBNAME
-# or:
-# POSTGRES_URL=postgresql://USER:PASSWORD@HOST:PORT/DBNAME
-# or:
-# POSTGRES_USER=...
-# POSTGRES_PASSWORD=...
-# POSTGRES_DB=...
-# POSTGRES_HOST=localhost
-# POSTGRES_PORT=5432
-
 # Optional helper to enable seeding endpoints
 ALLOW_SEED_ENDPOINT=true
 
-# SQLite fallback
+# Optional: override default SQLite path
 # DATABASE_URL=sqlite+aiosqlite:///./data/app.db
 ```
 
@@ -92,5 +87,6 @@ curl -s http://localhost:3001/api/v1/roles | jq .
 
 ## Notes
 
-- The `data/` directory is created automatically for SQLite and `*.db` files are ignored by `.gitignore`.
+- SQLite is the default for local/MVP. No external DB is required.
 - For production or multi-process deployments, ensure file permissions for `data/` are correct.
+- PostgreSQL support can be reinstated later by reintroducing the `asyncpg` dependency and re-enabling Postgres env handling in `src/core/config.py`.
