@@ -4,7 +4,7 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
+from sqlalchemy import select, text, inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 
@@ -68,11 +68,30 @@ async def on_startup() -> None:
     Initialize application components on startup.
 
     - Creates DB tables if they do not exist (no Alembic migrations in MVP).
+    - Applies lightweight SQLite migrations (adds 'password_hash' column to users if missing).
     - Performs a lightweight self-check against SQLite: create+list+cleanup a temp role.
     """
     engine = get_engine()
     async with engine.begin() as conn:
+        # Create tables first
         await conn.run_sync(Base.metadata.create_all)
+
+        # SQLite-safe column addition for existing DBs
+        def _ensure_user_password_hash(sync_conn):
+            try:
+                insp = inspect(sync_conn)
+                cols = [c["name"] for c in insp.get_columns("users")]
+                if "password_hash" not in cols:
+                    try:
+                        sync_conn.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(512)"))
+                    except Exception:
+                        # Ignore if concurrently added or not applicable
+                        pass
+            except Exception:
+                # Non-fatal in MVP
+                pass
+
+        await conn.run_sync(_ensure_user_password_hash)
 
     # Lightweight self-check: create and list roles
     try:

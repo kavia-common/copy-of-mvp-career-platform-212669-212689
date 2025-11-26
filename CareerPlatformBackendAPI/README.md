@@ -52,6 +52,21 @@ ALLOW_SEED_ENDPOINT=true
    - Swagger UI: http://localhost:3001/docs
    - OpenAPI JSON: http://localhost:3001/openapi.json
 
+## Auth (Updated)
+
+- Register:
+  - `POST /api/v1/auth/register`
+  - Payload: `{ "email": "<email>", "name": "<name>", "password": "<password>" }`
+  - Behavior: Password is never stored in plaintext; it is salted and hashed (PBKDF2). The response never includes the password.
+
+- Login:
+  - `POST /api/v1/auth/login`
+  - Payload: `{ "email": "<email>" | "name": "<name>", "password": "<password>" }`
+  - Behavior: Validates the supplied password and returns a JWT token on success.
+
+- Logout:
+  - `POST /api/v1/auth/logout` (and aliases `/api/v1/login`, `/api/v1/logout` are supported)
+
 ## Test the DB
 
 Simple CRUD endpoints are provided to validate data access:

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
+import hmac
+import secrets
 from typing import Any, Dict, Optional
 
 import jwt
@@ -14,6 +17,47 @@ from src.db.session import get_session
 from src.models.user import User
 
 http_bearer = HTTPBearer(auto_error=False)
+
+# Password hashing defaults (PBKDF2-HMAC-SHA256)
+_PBKDF2_ALG = "sha256"
+_PBKDF2_ITERATIONS = 260_000
+_SALT_BYTES = 16
+
+
+# PUBLIC_INTERFACE
+def hash_password(password: str, iterations: int = _PBKDF2_ITERATIONS) -> str:
+    """Return a salted PBKDF2-HMAC-SHA256 hash for the given password.
+
+    Stored format:
+        pbkdf2_sha256$<iterations>$<salt_hex>$<hash_hex>
+    """
+    if not isinstance(password, str) or password == "":
+        raise ValueError("Password must be a non-empty string")
+
+    salt = secrets.token_bytes(_SALT_BYTES)
+    dk = hashlib.pbkdf2_hmac(_PBKDF2_ALG, password.encode("utf-8"), salt, iterations)
+    return f"pbkdf2_sha256${iterations}${salt.hex()}${dk.hex()}"
+
+
+# PUBLIC_INTERFACE
+def verify_password(password: str, password_hash: Optional[str]) -> bool:
+    """Verify a plaintext password against a stored PBKDF2 salted hash."""
+    if not password_hash or not isinstance(password_hash, str):
+        return False
+
+    try:
+        scheme, iter_str, salt_hex, hash_hex = password_hash.split("$", 3)
+        if scheme != "pbkdf2_sha256":
+            return False
+        iterations = int(iter_str)
+        salt = bytes.fromhex(salt_hex)
+        expected = bytes.fromhex(hash_hex)
+    except Exception:
+        return False
+
+    candidate = hashlib.pbkdf2_hmac(_PBKDF2_ALG, password.encode("utf-8"), salt, iterations)
+    # Constant-time comparison
+    return hmac.compare_digest(candidate, expected)
 
 
 # PUBLIC_INTERFACE
@@ -60,10 +104,8 @@ async def get_current_user(
     """
     Dependency that validates a Bearer token and returns the corresponding User.
 
-    This uses HS256 JWT with a shared secret from env. For the MVP, password
-    verification is not persisted in the DB; register/login issue a token for
-    an existing user by email.
-
+    This uses HS256 JWT with a shared secret from env. Passwords are stored as
+    salted PBKDF2 hashes on the User model.
     Raises:
         HTTPException 401: if token is missing/invalid or user not found.
     """
@@ -73,7 +115,9 @@ async def get_current_user(
 
     token = credentials.credentials
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM], issuer=settings.JWT_ISSUER)
+        payload = jwt.decode(
+            token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM], issuer=settings.JWT_ISSUER
+        )
         user_id = payload.get("sub")
         if not user_id:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token: missing subject")

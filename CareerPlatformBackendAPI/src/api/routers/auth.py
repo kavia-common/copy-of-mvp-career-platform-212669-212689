@@ -7,10 +7,10 @@ from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.security import create_access_token, get_current_user
+from src.core.security import create_access_token, get_current_user, hash_password, verify_password
 from src.db.session import get_session
 from src.models.user import User
-from src.schemas.user import UserCreate, UserRead
+from src.schemas.user import UserRead
 
 # Primary auth router (versioned under /api/v1/auth)
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
@@ -19,16 +19,23 @@ router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 router_public = APIRouter(prefix="/api/v1", tags=["Auth"])
 
 
+class RegisterRequest(BaseModel):
+    """Registration payload for a new user."""
+    email: EmailStr = Field(..., description="Email address")
+    name: str = Field(..., description="Full name")
+    password: str = Field(..., description="Password (stored as salted hash; never returned)")
+
+
 class LoginRequest(BaseModel):
     """
-    Login payload for MVP authentication.
+    Login payload for authentication.
 
-    Accepts either email or name plus a password field (ignored for MVP).
+    Accepts either email or name plus a required password.
     At least one of email or name must be provided.
     """
     email: Optional[EmailStr] = Field(None, description="Email address")
     name: Optional[str] = Field(None, description="Full name (username)")
-    password: Optional[str] = Field(None, description="Password (ignored for MVP)")
+    password: str = Field(..., description="Password")
 
 
 class TokenResponse(BaseModel):
@@ -42,14 +49,14 @@ class TokenResponse(BaseModel):
     response_model=UserRead,
     status_code=status.HTTP_201_CREATED,
     summary="Register a new user",
-    description="Register a new user account. Password handling is not persisted in the MVP; only email/name/roles.",
+    description="Register a new user account with name, email, and password. The password is stored as a salted hash and is never returned.",
 )
-async def register(payload: UserCreate, session: AsyncSession = Depends(get_session)) -> UserRead:
+async def register(payload: RegisterRequest, session: AsyncSession = Depends(get_session)) -> UserRead:
     """
     Create a user if it does not exist. Enforces email uniqueness.
 
     Returns:
-        The created user document.
+        The created user (sans password).
     Raises:
         HTTPException 409 if email already exists.
     """
@@ -59,7 +66,8 @@ async def register(payload: UserCreate, session: AsyncSession = Depends(get_sess
     if existing:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
-    user = User(email=payload.email, name=payload.name, roles=payload.roles or [])
+    pwd_hash = hash_password(payload.password)
+    user = User(email=payload.email, name=payload.name, roles=[], password_hash=pwd_hash)
     session.add(user)
     await session.commit()
     await session.refresh(user)
@@ -71,16 +79,16 @@ async def register(payload: UserCreate, session: AsyncSession = Depends(get_sess
     "/login",
     response_model=TokenResponse,
     summary="User login",
-    description="Login by email or name and receive a JWT. Password is accepted but not validated in MVP.",
+    description="Login by email or name and password, and receive a JWT.",
     responses={
         200: {"description": "JWT token issued"},
-        400: {"description": "Invalid request (no identifier provided)"},
+        400: {"description": "Invalid request (identifier or password missing)"},
         401: {"description": "Invalid credentials"},
     },
 )
 async def login(payload: LoginRequest, session: AsyncSession = Depends(get_session)) -> TokenResponse:
     """
-    Issue a JWT for the given identifier if the user exists.
+    Issue a JWT for the given identifier if the user exists and password is valid.
 
     Accepts either:
     - email (case-insensitive)
@@ -90,14 +98,15 @@ async def login(payload: LoginRequest, session: AsyncSession = Depends(get_sessi
         TokenResponse containing a signed JWT.
 
     Raises:
-        HTTPException 400: if neither email nor name is provided.
-        HTTPException 401: if no matching user is found.
+        HTTPException 400: if identifier or password is not provided.
+        HTTPException 401: if credentials are invalid.
     """
     identifier_email = (payload.email or "").strip()
     identifier_name = (payload.name or "").strip()
-
     if not identifier_email and not identifier_name:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Must supply email or name")
+    if payload.password is None or str(payload.password).strip() == "":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password is required")
 
     if identifier_email:
         stmt = select(User).where(func.lower(User.email) == identifier_email.lower())
@@ -106,8 +115,8 @@ async def login(payload: LoginRequest, session: AsyncSession = Depends(get_sessi
 
     result = await session.execute(stmt)
     user = result.scalars().first()
-    if not user:
-        # Do not leak which identifier failed; use 401 Unauthorized for bad credentials
+    if not user or not verify_password(payload.password, user.password_hash):
+        # Do not leak which part failed; use 401 Unauthorized for bad credentials
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     token = create_access_token(subject=user.id, claims={"email": user.email, "roles": user.roles})
@@ -141,7 +150,7 @@ async def logout(_: User = Depends(get_current_user)) -> Response:
     summary="Register a new user (alias)",
     description="Alias for /api/v1/auth/register to support clients calling /api/v1/register.",
 )
-async def register_alias(payload: UserCreate, session: AsyncSession = Depends(get_session)) -> UserRead:
+async def register_alias(payload: RegisterRequest, session: AsyncSession = Depends(get_session)) -> UserRead:
     """
     Alias wrapper that delegates to the /api/v1/auth/register handler.
     """
@@ -156,7 +165,7 @@ async def register_alias(payload: UserCreate, session: AsyncSession = Depends(ge
     description="Alias for /api/v1/auth/login to support clients calling /api/v1/login.",
     responses={
         200: {"description": "JWT token issued"},
-        400: {"description": "Invalid request (no identifier provided)"},
+        400: {"description": "Invalid request (identifier or password missing)"},
         401: {"description": "Invalid credentials"},
     },
 )

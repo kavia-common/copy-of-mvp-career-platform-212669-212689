@@ -27,6 +27,10 @@ class User(Base):
     email = Column(String(320), unique=True, nullable=False, index=True)
     name = Column(String(200), nullable=False)
     roles = Column(JSON, nullable=False, default=list)
+
+    # New: store salted password hash (PBKDF2), never store plaintext
+    password_hash = Column(String(512), nullable=True)
+
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     def __repr__(self) -> str:  # pragma: no cover - simple debug helper

@@ -9,7 +9,7 @@ from src.api.main import app
 
 # PUBLIC_INTERFACE
 def test_auth_routes_exist_and_behavior():
-    """Validate auth route registration and expected status codes."""
+    """Validate auth route registration and expected status codes with password-based auth."""
     with TestClient(app) as client:
         # Root health check should be available
         r = client.get("/")
@@ -23,20 +23,23 @@ def test_auth_routes_exist_and_behavior():
         r = client.post("/api/v1/login", json={})
         assert r.status_code == 400
 
-        # Login with non-existent user -> 401 (not 404)
-        r = client.post("/api/v1/auth/login", json={"email": "does-not-exist@example.com"})
+        # Login with non-existent user -> 401 (identifier present, wrong creds)
+        r = client.post("/api/v1/auth/login", json={"email": "does-not-exist@example.com", "password": "badpass"})
         assert r.status_code == 401
 
         # Register a new user (unique email to avoid conflicts)
         email = f"test-{uuid.uuid4().hex[:8]}@example.com"
         name = "Test User"
-        r = client.post("/api/v1/auth/register", json={"email": email, "name": name})
+        password = "S3cureP@ss!"
+        r = client.post("/api/v1/auth/register", json={"email": email, "name": name, "password": password})
         assert r.status_code == 201, r.text
         user = r.json()
         assert user.get("email") == email
+        assert "password" not in user  # never returned
+        assert "password_hash" not in user  # internal only
 
         # Login the newly registered user -> 200 with token
-        r = client.post("/api/v1/auth/login", json={"email": email, "password": "ignored"})
+        r = client.post("/api/v1/auth/login", json={"email": email, "password": password})
         assert r.status_code == 200, r.text
         data = r.json()
         token = data.get("token")
