@@ -102,7 +102,7 @@
             }
           },
           "400": {
-            "description": "Invalid request (identifier or password missing)"
+            "description": "Invalid request (email or password missing)"
           },
           "401": {
             "description": "Invalid credentials"

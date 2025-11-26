@@ -30,8 +30,9 @@ class LoginRequest(BaseModel):
 
     Requires email and password.
     """
-    email: EmailStr = Field(..., description="Email address")
-    password: str = Field(..., description="Password")
+    # Make fields optional to allow custom 400 handling for missing fields (avoids FastAPI 422).
+    email: EmailStr | None = Field(None, description="Email address")
+    password: str | None = Field(None, description="Password")
 
 
 class TokenResponse(BaseModel):
@@ -78,6 +79,7 @@ async def register(payload: RegisterRequest, session: AsyncSession = Depends(get
     description="Login with email and password, and receive a JWT.",
     responses={
         200: {"description": "JWT token issued"},
+        400: {"description": "Invalid request (email or password missing)"},
         401: {"description": "Invalid credentials"},
     },
 )
@@ -92,8 +94,13 @@ async def login(payload: LoginRequest, session: AsyncSession = Depends(get_sessi
         TokenResponse containing a signed JWT.
 
     Raises:
+        HTTPException 400: if email or password is missing.
         HTTPException 401: if credentials are invalid.
     """
+    # Validate required fields explicitly to return 400 (not 422)
+    if not payload.email or not payload.password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="email and password are required")
+
     stmt = select(User).where(func.lower(User.email) == payload.email.lower())
     result = await session.execute(stmt)
     user = result.scalars().first()
@@ -147,6 +154,7 @@ async def register_alias(payload: RegisterRequest, session: AsyncSession = Depen
     description="Alias for /api/v1/auth/login to support clients calling /api/v1/login.",
     responses={
         200: {"description": "JWT token issued"},
+        400: {"description": "Invalid request (email or password missing)"},
         401: {"description": "Invalid credentials"},
     },
 )

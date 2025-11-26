@@ -61,8 +61,8 @@ ALLOW_SEED_ENDPOINT=true
 
 - Login:
   - `POST /api/v1/auth/login`
-  - Payload: `{ "email": "<email>" | "name": "<name>", "password": "<password>" }`
-  - Behavior: Validates the supplied password and returns a JWT token on success.
+  - Payload: `{ "email": "<email>", "password": "<password>" }`
+  - Behavior: Validates the supplied password and returns a JWT token on success; returns 401 on invalid credentials and 400 if required fields are missing.
 
 - Logout:
   - `POST /api/v1/auth/logout` (and aliases `/api/v1/login`, `/api/v1/logout` are supported)
