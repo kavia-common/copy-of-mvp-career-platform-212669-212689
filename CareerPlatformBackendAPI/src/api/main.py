@@ -10,7 +10,7 @@ from sqlalchemy.orm import sessionmaker
 
 from src.api.routers.users import router as users_router
 from src.api.routers.roles import router as roles_router
-from src.api.routers.auth import router as auth_router
+from src.api.routers.auth import router as auth_router, router_public as auth_router_public
 from src.api.routers.competencies import router as competencies_router
 from src.api.routers.gap_analysis import router as gap_router
 from src.api.routers.development_plan import router as plan_router
@@ -138,6 +138,7 @@ def health_check() -> dict:
 
 # Register routers
 app.include_router(auth_router)
+app.include_router(auth_router_public)
 app.include_router(users_router)
 app.include_router(roles_router)
 app.include_router(competencies_router)

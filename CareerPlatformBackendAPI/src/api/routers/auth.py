@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import func, select
@@ -10,13 +12,23 @@ from src.db.session import get_session
 from src.models.user import User
 from src.schemas.user import UserCreate, UserRead
 
+# Primary auth router (versioned under /api/v1/auth)
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
+# Public/legacy-compatibility router (versioned under /api/v1 without /auth segment)
+# This aligns with some frontend clients that call /api/v1/login and /api/v1/register directly.
+router_public = APIRouter(prefix="/api/v1", tags=["Auth"])
 
 
 class LoginRequest(BaseModel):
-    """Login payload for MVP authentication (password not persisted/validated)."""
-    email: EmailStr = Field(..., description="Email address")
-    password: str = Field(..., description="Password (ignored for MVP)")
+    """
+    Login payload for MVP authentication.
+
+    Accepts either email or name plus a password field (ignored for MVP).
+    At least one of email or name must be provided.
+    """
+    email: Optional[EmailStr] = Field(None, description="Email address")
+    name: Optional[str] = Field(None, description="Full name (username)")
+    password: Optional[str] = Field(None, description="Password (ignored for MVP)")
 
 
 class TokenResponse(BaseModel):
@@ -35,6 +47,11 @@ class TokenResponse(BaseModel):
 async def register(payload: UserCreate, session: AsyncSession = Depends(get_session)) -> UserRead:
     """
     Create a user if it does not exist. Enforces email uniqueness.
+
+    Returns:
+        The created user document.
+    Raises:
+        HTTPException 409 if email already exists.
     """
     exists_stmt = select(User).where(func.lower(User.email) == payload.email.lower())
     result = await session.execute(exists_stmt)
@@ -54,17 +71,43 @@ async def register(payload: UserCreate, session: AsyncSession = Depends(get_sess
     "/login",
     response_model=TokenResponse,
     summary="User login",
-    description="Login by email and receive a JWT. Password is accepted but not validated in MVP.",
+    description="Login by email or name and receive a JWT. Password is accepted but not validated in MVP.",
+    responses={
+        200: {"description": "JWT token issued"},
+        400: {"description": "Invalid request (no identifier provided)"},
+        401: {"description": "Invalid credentials"},
+    },
 )
 async def login(payload: LoginRequest, session: AsyncSession = Depends(get_session)) -> TokenResponse:
     """
-    Issue a JWT for the given email if the user exists.
+    Issue a JWT for the given identifier if the user exists.
+
+    Accepts either:
+    - email (case-insensitive)
+    - name (case-insensitive)
+
+    Returns:
+        TokenResponse containing a signed JWT.
+
+    Raises:
+        HTTPException 400: if neither email nor name is provided.
+        HTTPException 401: if no matching user is found.
     """
-    result = await session.execute(
-        select(User).where(func.lower(User.email) == payload.email.lower())
-    )
+    identifier_email = (payload.email or "").strip()
+    identifier_name = (payload.name or "").strip()
+
+    if not identifier_email and not identifier_name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Must supply email or name")
+
+    if identifier_email:
+        stmt = select(User).where(func.lower(User.email) == identifier_email.lower())
+    else:
+        stmt = select(User).where(func.lower(User.name) == identifier_name.lower())
+
+    result = await session.execute(stmt)
     user = result.scalars().first()
     if not user:
+        # Do not leak which identifier failed; use 401 Unauthorized for bad credentials
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     token = create_access_token(subject=user.id, claims={"email": user.email, "roles": user.roles})
@@ -81,6 +124,59 @@ async def login(payload: LoginRequest, session: AsyncSession = Depends(get_sessi
 )
 async def logout(_: User = Depends(get_current_user)) -> Response:
     """
-    No server-side session to invalidate in MVP. Clients should discard tokens.
+    Stateless logout. There is no server-side session in the MVP.
+
+    Clients should simply discard stored tokens.
     """
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# ----- Legacy/alias routes to avoid 404 when clients call /api/v1/* directly ----- #
+
+# PUBLIC_INTERFACE
+@router_public.post(
+    "/register",
+    response_model=UserRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register a new user (alias)",
+    description="Alias for /api/v1/auth/register to support clients calling /api/v1/register.",
+)
+async def register_alias(payload: UserCreate, session: AsyncSession = Depends(get_session)) -> UserRead:
+    """
+    Alias wrapper that delegates to the /api/v1/auth/register handler.
+    """
+    return await register(payload, session)  # type: ignore[arg-type]
+
+
+# PUBLIC_INTERFACE
+@router_public.post(
+    "/login",
+    response_model=TokenResponse,
+    summary="User login (alias)",
+    description="Alias for /api/v1/auth/login to support clients calling /api/v1/login.",
+    responses={
+        200: {"description": "JWT token issued"},
+        400: {"description": "Invalid request (no identifier provided)"},
+        401: {"description": "Invalid credentials"},
+    },
+)
+async def login_alias(payload: LoginRequest, session: AsyncSession = Depends(get_session)) -> TokenResponse:
+    """
+    Alias wrapper that delegates to the /api/v1/auth/login handler.
+    """
+    return await login(payload, session)  # type: ignore[arg-type]
+
+
+# PUBLIC_INTERFACE
+@router_public.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    summary="User logout (alias)",
+    description="Alias for /api/v1/auth/logout to support clients calling /api/v1/logout.",
+)
+async def logout_alias(_: User = Depends(get_current_user)) -> Response:
+    """
+    Alias wrapper for stateless logout.
+    """
+    return await logout(_)  # type: ignore[misc]
