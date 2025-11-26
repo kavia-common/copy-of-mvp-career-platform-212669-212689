@@ -8,21 +8,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def _normalize_to_asyncpg(url: str) -> str:
-    """
-    Normalize a PostgreSQL URL to use the asyncpg driver for SQLAlchemy async engine.
-    Accepts postgres:// or postgresql:// and converts to postgresql+asyncpg://
-    """
-    if not url:
-        return url
-    if url.startswith("postgres://"):
-        return "postgresql+asyncpg://" + url[len("postgres://") :]
-    if url.startswith("postgresql://"):
-        return "postgresql+asyncpg://" + url[len("postgresql://") :]
-    # leave other schemes (e.g., sqlite+aiosqlite) unchanged
-    return url
-
-
 def _build_database_url() -> str:
     """
     Build the database URL with the following precedence (SQLite-first migration):

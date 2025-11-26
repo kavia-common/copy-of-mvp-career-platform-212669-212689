@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "MVP Career Platform Backend",
-    "description": "Central backend service for the MVP Career Platform. Uses PostgreSQL (async via asyncpg) if configured via env; falls back to SQLite (aiosqlite) otherwise.",
+    "description": "Central backend service for the MVP Career Platform. Defaults to SQLite (async via aiosqlite). PostgreSQL configuration is disabled for this migration.",
     "version": "1.0.0"
   },
   "paths": {
