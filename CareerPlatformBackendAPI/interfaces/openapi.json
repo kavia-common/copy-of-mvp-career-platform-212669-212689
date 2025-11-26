@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "MVP Career Platform Backend",
-    "description": "Central backend service for the MVP Career Platform. Configured to use SQLite (async) for persistence in the MVP.",
+    "description": "Central backend service for the MVP Career Platform. Uses PostgreSQL (async via asyncpg) if configured via env; falls back to SQLite (aiosqlite) otherwise.",
     "version": "1.0.0"
   },
   "paths": {
@@ -174,6 +174,130 @@
           }
         }
       }
+    },
+    "/api/v1/roles": {
+      "post": {
+        "tags": [
+          "Roles"
+        ],
+        "summary": "Create a role",
+        "description": "Create a new role record in the database.",
+        "operationId": "create_role_api_v1_roles_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Role created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleRead"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "A role with this id already exists"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Roles"
+        ],
+        "summary": "List roles",
+        "description": "Retrieve all roles, with optional case-insensitive filtering on name/description.",
+        "operationId": "list_roles_api_v1_roles_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional case-insensitive search on name or description",
+              "title": "Q"
+            },
+            "description": "Optional case-insensitive search on name or description"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of roles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleRead"
+                  },
+                  "title": "Response List Roles Api V1 Roles Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roles/seed": {
+      "post": {
+        "tags": [
+          "Roles"
+        ],
+        "summary": "Seed a sample role",
+        "description": "Insert a sample role for verification. Guarded by ALLOW_SEED_ENDPOINT=true.",
+        "operationId": "seed_role_api_v1_roles_seed_post",
+        "responses": {
+          "200": {
+            "description": "Seeded (or existing) role returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleRead"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Seeding is disabled"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -190,6 +314,159 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "RoleCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Unique display name of the role"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Optional description of the role"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Arbitrary metadata for the role (JSONB/JSON)"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "Optional version identifier for the role definition"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "Optional source or origin of this role"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "Optional client-supplied identifier (UUID or text). If omitted, server generates."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "RoleCreate",
+        "description": "Schema for creating a new role."
+      },
+      "RoleRead": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Unique display name of the role"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Optional description of the role"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Arbitrary metadata for the role (JSONB/JSON)"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "Optional version identifier for the role definition"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "Optional source or origin of this role"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Identifier of the role (UUID or text)"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Creation timestamp (UTC)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id",
+          "created_at"
+        ],
+        "title": "RoleRead",
+        "description": "Schema for reading back a stored role."
       },
       "UserCreate": {
         "properties": {
@@ -306,7 +583,11 @@
     },
     {
       "name": "Users",
-      "description": "Simple CRUD endpoints to validate SQLite data access"
+      "description": "Simple CRUD endpoints to validate DB data access"
+    },
+    {
+      "name": "Roles",
+      "description": "Manage role definitions persisted in the database"
     }
   ]
 }
