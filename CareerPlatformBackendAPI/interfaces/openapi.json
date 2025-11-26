@@ -78,7 +78,7 @@
           "Auth"
         ],
         "summary": "User login",
-        "description": "Login by email and receive a JWT. Password is accepted but not validated in MVP.",
+        "description": "Login by email or name and receive a JWT. Password is accepted but not validated in MVP.",
         "operationId": "login_api_v1_auth_login_post",
         "requestBody": {
           "content": {
@@ -92,7 +92,7 @@
         },
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "JWT token issued",
             "content": {
               "application/json": {
                 "schema": {
@@ -100,6 +100,12 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Invalid request (no identifier provided)"
+          },
+          "401": {
+            "description": "Invalid credentials"
           },
           "422": {
             "description": "Validation Error",
@@ -122,6 +128,116 @@
         "summary": "User logout",
         "description": "Stateless logout. Clients should discard the token.",
         "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register a new user (alias)",
+        "description": "Alias for /api/v1/auth/register to support clients calling /api/v1/register.",
+        "operationId": "register_alias_api_v1_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "User login (alias)",
+        "description": "Alias for /api/v1/auth/login to support clients calling /api/v1/login.",
+        "operationId": "login_alias_api_v1_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "JWT token issued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request (no identifier provided)"
+          },
+          "401": {
+            "description": "Invalid credentials"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "User logout (alias)",
+        "description": "Alias for /api/v1/auth/logout to support clients calling /api/v1/logout.",
+        "operationId": "logout_alias_api_v1_logout_post",
         "responses": {
           "204": {
             "description": "Successful Response"
@@ -1185,24 +1301,46 @@
       "LoginRequest": {
         "properties": {
           "email": {
-            "type": "string",
-            "format": "email",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "email"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Email",
             "description": "Email address"
           },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Full name (username)"
+          },
           "password": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Password",
             "description": "Password (ignored for MVP)"
           }
         },
         "type": "object",
-        "required": [
-          "email",
-          "password"
-        ],
         "title": "LoginRequest",
-        "description": "Login payload for MVP authentication (password not persisted/validated)."
+        "description": "Login payload for MVP authentication.\n\nAccepts either email or name plus a password field (ignored for MVP).\nAt least one of email or name must be provided."
       },
       "PlanExportRequest": {
         "properties": {
