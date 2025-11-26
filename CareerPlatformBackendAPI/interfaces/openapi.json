@@ -30,6 +30,110 @@
         }
       }
     },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Register a new user",
+        "description": "Register a new user account. Password handling is not persisted in the MVP; only email/name/roles.",
+        "operationId": "register_api_v1_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "User login",
+        "description": "Login by email and receive a JWT. Password is accepted but not validated in MVP.",
+        "operationId": "login_api_v1_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "User logout",
+        "description": "Stateless logout. Clients should discard the token.",
+        "operationId": "logout_api_v1_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/users": {
       "post": {
         "tags": [
@@ -298,10 +402,773 @@
           }
         }
       }
+    },
+    "/api/v1/roles/select": {
+      "post": {
+        "tags": [
+          "Roles"
+        ],
+        "summary": "Select current and target roles",
+        "description": "Validate and record role selection (MVP does not persist; audits only).",
+        "operationId": "select_roles_api_v1_roles_select_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleSelection"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Select Roles Api V1 Roles Select Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/competencies": {
+      "get": {
+        "tags": [
+          "Competencies"
+        ],
+        "summary": "List competencies",
+        "description": "List competencies. Optionally filter by role_id to return only competencies mapped to those roles.",
+        "operationId": "list_competencies_api_v1_competencies_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "role_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional role id filter. Repeat query param for multiple values.",
+              "title": "Role Id"
+            },
+            "description": "Optional role id filter. Repeat query param for multiple values."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CompetencyRead"
+                  },
+                  "title": "Response List Competencies Api V1 Competencies Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/competencies/assess": {
+      "post": {
+        "tags": [
+          "Competencies"
+        ],
+        "summary": "Submit user competency assessment",
+        "description": "Accepts assessed competencies for the current user. MVP stores no persistent assessment.",
+        "operationId": "assess_competencies_api_v1_competencies_assess_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/AssessedCompetency"
+                },
+                "type": "array",
+                "title": "Payload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Assessment accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssessmentAck"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/gap-analysis": {
+      "post": {
+        "tags": [
+          "Gap Analysis"
+        ],
+        "summary": "Perform gap analysis",
+        "description": "Compute competency gaps against a target role.",
+        "operationId": "gap_analysis_api_v1_gap_analysis_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GapAnalysisRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GapAnalysisResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/development-plan": {
+      "get": {
+        "tags": [
+          "Development Plan"
+        ],
+        "summary": "Retrieve development plan (MVP placeholder)",
+        "description": "Returns a placeholder plan. Use POST /development-plan with gap analysis for a tailored plan.",
+        "operationId": "get_plan_placeholder_api_v1_development_plan_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevelopmentPlan"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Development Plan"
+        ],
+        "summary": "Generate development plan",
+        "description": "Generate a personalized development plan from a gap analysis input.",
+        "operationId": "generate_plan_api_v1_development_plan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GapAnalysisRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevelopmentPlan"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/development-plan/export": {
+      "post": {
+        "tags": [
+          "Development Plan"
+        ],
+        "summary": "Export development plan",
+        "description": "Export a plan to a shareable link (MVP returns a placeholder URL).",
+        "operationId": "export_plan_api_v1_development_plan_export_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlanExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanExportResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/audit-logs": {
+      "get": {
+        "tags": [
+          "Audit"
+        ],
+        "summary": "Retrieve audit logs (admin only)",
+        "description": "List recent audit logs. Requires 'admin' role.",
+        "operationId": "get_audit_logs_api_v1_audit_logs_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditLogRead"
+                  },
+                  "type": "array",
+                  "title": "Response Get Audit Logs Api V1 Audit Logs Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/role-adjacency": {
+      "get": {
+        "tags": [
+          "Roles"
+        ],
+        "summary": "Get alternative role suggestions",
+        "description": "Return top-N adjacent roles for the given currentRoleId, powered by the internal Node Role Mapping Service.",
+        "operationId": "get_role_adjacency_api_v1_role_adjacency_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "currentRoleId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Current role identifier",
+              "title": "Currentroleid"
+            },
+            "description": "Current role identifier"
+          },
+          {
+            "name": "topN",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Number of suggestions to return",
+              "title": "Topn"
+            },
+            "description": "Number of suggestions to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suggestions returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleAdjacencyResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "502": {
+            "description": "Upstream role mapper failure"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AssessedCompetency": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Competency identifier"
+          },
+          "proficiencyLevel": {
+            "type": "string",
+            "title": "Proficiencylevel",
+            "description": "Current proficiency level (string or number)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "proficiencyLevel"
+        ],
+        "title": "AssessedCompetency",
+        "description": "Client-provided competency level for gap analysis/assessment."
+      },
+      "AssessmentAck": {
+        "properties": {
+          "accepted": {
+            "type": "integer",
+            "title": "Accepted",
+            "description": "Number of competencies accepted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "accepted"
+        ],
+        "title": "AssessmentAck",
+        "description": "Acknowledgement of assessment submission."
+      },
+      "AuditLogRead": {
+        "properties": {
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "User identifier responsible for action (if known)"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action",
+            "description": "Action performed"
+          },
+          "entity_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Type",
+            "description": "Entity type affected"
+          },
+          "entity_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Id",
+            "description": "Entity identifier affected"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details",
+            "description": "Additional structured details/context"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Identifier of the audit log entry"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp",
+            "description": "Timestamp of the event"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Creation timestamp (UTC)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "id",
+          "timestamp",
+          "created_at"
+        ],
+        "title": "AuditLogRead",
+        "description": "Schema for reading an audit log entry."
+      },
+      "CompetencyRead": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Display name of the competency"
+          },
+          "definition": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Definition",
+            "description": "Optional description/definition"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category",
+            "description": "Optional category name"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata",
+            "description": "Arbitrary metadata for the competency"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Identifier of the competency (UUID or text)"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Creation timestamp (UTC)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "id",
+          "created_at"
+        ],
+        "title": "CompetencyRead",
+        "description": "Schema for reading a competency."
+      },
+      "DevelopmentPlan": {
+        "properties": {
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/DevelopmentPlanStep"
+            },
+            "type": "array",
+            "title": "Steps",
+            "description": "Plan steps"
+          }
+        },
+        "type": "object",
+        "title": "DevelopmentPlan",
+        "description": "A generated development plan."
+      },
+      "DevelopmentPlanStep": {
+        "properties": {
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "description": "Step description"
+          },
+          "actionType": {
+            "type": "string",
+            "title": "Actiontype",
+            "description": "Type of action (learn, practice, shadow, etc.)"
+          },
+          "resource": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource",
+            "description": "Helpful link or resource"
+          }
+        },
+        "type": "object",
+        "required": [
+          "description",
+          "actionType"
+        ],
+        "title": "DevelopmentPlanStep",
+        "description": "A single actionable step in the development plan."
+      },
+      "GapAnalysisRequest": {
+        "properties": {
+          "currentCompetencies": {
+            "items": {
+              "$ref": "#/components/schemas/AssessedCompetency"
+            },
+            "type": "array",
+            "title": "Currentcompetencies",
+            "description": "Current user competencies"
+          },
+          "targetRoleId": {
+            "type": "string",
+            "title": "Targetroleid",
+            "description": "Target role identifier"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currentCompetencies",
+          "targetRoleId"
+        ],
+        "title": "GapAnalysisRequest",
+        "description": "Payload for computing a gap analysis."
+      },
+      "GapAnalysisResult": {
+        "properties": {
+          "targetRoleId": {
+            "type": "string",
+            "title": "Targetroleid",
+            "description": "Target role identifier"
+          },
+          "currentCompetencies": {
+            "items": {
+              "$ref": "#/components/schemas/AssessedCompetency"
+            },
+            "type": "array",
+            "title": "Currentcompetencies",
+            "description": "Echo of input competences"
+          },
+          "gaps": {
+            "items": {
+              "$ref": "#/components/schemas/GapItem"
+            },
+            "type": "array",
+            "title": "Gaps",
+            "description": "List of identified gaps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "targetRoleId",
+          "currentCompetencies"
+        ],
+        "title": "GapAnalysisResult",
+        "description": "Computed gap analysis result."
+      },
+      "GapItem": {
+        "properties": {
+          "competencyId": {
+            "type": "string",
+            "title": "Competencyid",
+            "description": "Competency identifier"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Competency name, if known"
+          },
+          "currentLevel": {
+            "type": "string",
+            "title": "Currentlevel",
+            "description": "Current level"
+          },
+          "requiredLevel": {
+            "type": "string",
+            "title": "Requiredlevel",
+            "description": "Required level for target role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "competencyId",
+          "currentLevel",
+          "requiredLevel"
+        ],
+        "title": "GapItem",
+        "description": "One competency gap entry."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -314,6 +1181,95 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "LoginRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "Email address"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password",
+            "description": "Password (ignored for MVP)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "description": "Login payload for MVP authentication (password not persisted/validated)."
+      },
+      "PlanExportRequest": {
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "pdf",
+              "link"
+            ],
+            "title": "Format",
+            "description": "Export format"
+          }
+        },
+        "type": "object",
+        "required": [
+          "format"
+        ],
+        "title": "PlanExportRequest",
+        "description": "Request to export a plan as pdf or link."
+      },
+      "PlanExportResponse": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "URL to exported artifact"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "PlanExportResponse",
+        "description": "Response containing a URL to the exported plan."
+      },
+      "RoleAdjacencyResponse": {
+        "properties": {
+          "currentRoleId": {
+            "type": "string",
+            "title": "Currentroleid",
+            "description": "Current role identifier"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/RoleSuggestion"
+            },
+            "type": "array",
+            "title": "Suggestions",
+            "description": "Top-N suggestions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currentRoleId"
+        ],
+        "title": "RoleAdjacencyResponse",
+        "description": "Response payload for role adjacency suggestions.",
+        "example": {
+          "currentRoleId": "chief-architect",
+          "suggestions": [
+            {
+              "rationale": "Leadership adjacency",
+              "targetRoleId": "cto",
+              "weight": 0.92
+            }
+          ]
+        }
       },
       "RoleCreate": {
         "properties": {
@@ -468,6 +1424,80 @@
         "title": "RoleRead",
         "description": "Schema for reading back a stored role."
       },
+      "RoleSelection": {
+        "properties": {
+          "currentRoleId": {
+            "type": "string",
+            "title": "Currentroleid",
+            "description": "Current role identifier"
+          },
+          "targetRoleId": {
+            "type": "string",
+            "title": "Targetroleid",
+            "description": "Target role identifier"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currentRoleId",
+          "targetRoleId"
+        ],
+        "title": "RoleSelection",
+        "description": "Payload to select current and target roles."
+      },
+      "RoleSuggestion": {
+        "properties": {
+          "targetRoleId": {
+            "type": "string",
+            "title": "Targetroleid",
+            "description": "Suggested target role identifier"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight",
+            "description": "Relative score or probability (0..1)"
+          },
+          "rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rationale",
+            "description": "Reason for adjacency"
+          }
+        },
+        "type": "object",
+        "required": [
+          "targetRoleId",
+          "weight"
+        ],
+        "title": "RoleSuggestion",
+        "description": "One suggested target role with weight and rationale.",
+        "example": {
+          "rationale": "Leadership adjacency",
+          "targetRoleId": "cto",
+          "weight": 0.92
+        }
+      },
+      "TokenResponse": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token",
+            "description": "Bearer token (JWT)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "TokenResponse",
+        "description": "JWT response for successful authentication."
+      },
       "UserCreate": {
         "properties": {
           "email": {
@@ -574,6 +1604,12 @@
         ],
         "title": "ValidationError"
       }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
     }
   },
   "tags": [
@@ -582,12 +1618,32 @@
       "description": "Health and service status"
     },
     {
+      "name": "Auth",
+      "description": "Authentication endpoints (JWT-based)"
+    },
+    {
       "name": "Users",
       "description": "Simple CRUD endpoints to validate DB data access"
     },
     {
       "name": "Roles",
       "description": "Manage role definitions persisted in the database"
+    },
+    {
+      "name": "Competencies",
+      "description": "List and assess competencies"
+    },
+    {
+      "name": "Gap Analysis",
+      "description": "Compute competency gaps for a target role"
+    },
+    {
+      "name": "Development Plan",
+      "description": "Generate and export development plans"
+    },
+    {
+      "name": "Audit",
+      "description": "Audit log retrieval (admin)"
     }
   ]
 }
