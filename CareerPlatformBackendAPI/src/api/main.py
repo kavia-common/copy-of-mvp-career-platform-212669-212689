@@ -18,6 +18,11 @@ from src.db.session import get_engine
 # (Create_all requires models imported before metadata operation)
 import src.models.user  # noqa: F401
 import src.models.role  # noqa: F401
+import src.models.competency  # noqa: F401
+import src.models.role_competency  # noqa: F401
+import src.models.role_adjacency  # noqa: F401
+import src.models.audit_log  # noqa: F401
+import src.models.traceability  # noqa: F401
 
 settings = get_settings()
 
