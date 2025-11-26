@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import func, select
@@ -30,11 +28,9 @@ class LoginRequest(BaseModel):
     """
     Login payload for authentication.
 
-    Accepts either email or name plus a required password.
-    At least one of email or name must be provided.
+    Requires email and password.
     """
-    email: Optional[EmailStr] = Field(None, description="Email address")
-    name: Optional[str] = Field(None, description="Full name (username)")
+    email: EmailStr = Field(..., description="Email address")
     password: str = Field(..., description="Password")
 
 
@@ -79,40 +75,26 @@ async def register(payload: RegisterRequest, session: AsyncSession = Depends(get
     "/login",
     response_model=TokenResponse,
     summary="User login",
-    description="Login by email or name and password, and receive a JWT.",
+    description="Login with email and password, and receive a JWT.",
     responses={
         200: {"description": "JWT token issued"},
-        400: {"description": "Invalid request (identifier or password missing)"},
         401: {"description": "Invalid credentials"},
     },
 )
 async def login(payload: LoginRequest, session: AsyncSession = Depends(get_session)) -> TokenResponse:
     """
-    Issue a JWT for the given identifier if the user exists and password is valid.
+    Issue a JWT for the email if the user exists and password is valid.
 
-    Accepts either:
-    - email (case-insensitive)
-    - name (case-insensitive)
+    Args:
+        payload: LoginRequest with email and password.
 
     Returns:
         TokenResponse containing a signed JWT.
 
     Raises:
-        HTTPException 400: if identifier or password is not provided.
         HTTPException 401: if credentials are invalid.
     """
-    identifier_email = (payload.email or "").strip()
-    identifier_name = (payload.name or "").strip()
-    if not identifier_email and not identifier_name:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Must supply email or name")
-    if payload.password is None or str(payload.password).strip() == "":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password is required")
-
-    if identifier_email:
-        stmt = select(User).where(func.lower(User.email) == identifier_email.lower())
-    else:
-        stmt = select(User).where(func.lower(User.name) == identifier_name.lower())
-
+    stmt = select(User).where(func.lower(User.email) == payload.email.lower())
     result = await session.execute(stmt)
     user = result.scalars().first()
     if not user or not verify_password(payload.password, user.password_hash):
@@ -165,7 +147,6 @@ async def register_alias(payload: RegisterRequest, session: AsyncSession = Depen
     description="Alias for /api/v1/auth/login to support clients calling /api/v1/login.",
     responses={
         200: {"description": "JWT token issued"},
-        400: {"description": "Invalid request (identifier or password missing)"},
         401: {"description": "Invalid credentials"},
     },
 )

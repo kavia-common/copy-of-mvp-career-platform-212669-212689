@@ -36,13 +36,13 @@
           "Auth"
         ],
         "summary": "Register a new user",
-        "description": "Register a new user account. Password handling is not persisted in the MVP; only email/name/roles.",
+        "description": "Register a new user account with name, email, and password. The password is stored as a salted hash and is never returned.",
         "operationId": "register_api_v1_auth_register_post",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UserCreate"
+                "$ref": "#/components/schemas/RegisterRequest"
               }
             }
           },
@@ -78,7 +78,7 @@
           "Auth"
         ],
         "summary": "User login",
-        "description": "Login by email or name and receive a JWT. Password is accepted but not validated in MVP.",
+        "description": "Login with email and password, and receive a JWT.",
         "operationId": "login_api_v1_auth_login_post",
         "requestBody": {
           "content": {
@@ -102,7 +102,7 @@
             }
           },
           "400": {
-            "description": "Invalid request (no identifier provided)"
+            "description": "Invalid request (identifier or password missing)"
           },
           "401": {
             "description": "Invalid credentials"
@@ -152,7 +152,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UserCreate"
+                "$ref": "#/components/schemas/RegisterRequest"
               }
             }
           },
@@ -212,7 +212,7 @@
             }
           },
           "400": {
-            "description": "Invalid request (no identifier provided)"
+            "description": "Invalid request (identifier or password missing)"
           },
           "401": {
             "description": "Invalid credentials"
@@ -1301,46 +1301,24 @@
       "LoginRequest": {
         "properties": {
           "email": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "email"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
+            "format": "email",
             "title": "Email",
             "description": "Email address"
           },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name",
-            "description": "Full name (username)"
-          },
           "password": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Password",
-            "description": "Password (ignored for MVP)"
+            "description": "Password"
           }
         },
         "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
         "title": "LoginRequest",
-        "description": "Login payload for MVP authentication.\n\nAccepts either email or name plus a password field (ignored for MVP).\nAt least one of email or name must be provided."
+        "description": "Login payload for authentication.\n\nRequires email and password."
       },
       "PlanExportRequest": {
         "properties": {
@@ -1375,6 +1353,34 @@
         ],
         "title": "PlanExportResponse",
         "description": "Response containing a URL to the exported plan."
+      },
+      "RegisterRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "Email address"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Full name"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password",
+            "description": "Password (stored as salted hash; never returned)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "name",
+          "password"
+        ],
+        "title": "RegisterRequest",
+        "description": "Registration payload for a new user."
       },
       "RoleAdjacencyResponse": {
         "properties": {
