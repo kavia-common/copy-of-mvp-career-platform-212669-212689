@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exception_handlers import http_exception_handler as fastapi_http_exception_handler
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from sqlalchemy import select, text, inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -60,6 +62,26 @@ app.add_middleware(
 )
 
 logger = logging.getLogger(__name__)
+
+@app.exception_handler(StarletteHTTPException)
+async def custom_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """
+    Log 404/405 errors with method and path to surface frontend/backend API path mismatches,
+    then delegate to FastAPI's default exception handler.
+    """
+    try:
+        if exc.status_code in (404, 405):
+            logger.warning(
+                "HTTP %s on %s %s - detail=%s",
+                exc.status_code,
+                request.method,
+                request.url.path,
+                getattr(exc, "detail", None),
+            )
+    except Exception:
+        # Avoid breaking the default handler if logging fails
+        pass
+    return await fastapi_http_exception_handler(request, exc)
 
 
 @app.on_event("startup")

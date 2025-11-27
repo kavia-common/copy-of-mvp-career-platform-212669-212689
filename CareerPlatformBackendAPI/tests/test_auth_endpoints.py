@@ -1,6 +1,14 @@
 from __future__ import annotations
 
 import uuid
+import os
+import sys
+
+# Ensure project root (containing 'src') is on sys.path for imports when tests run from various contexts
+CURRENT_DIR = os.path.dirname(__file__)
+PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
 from fastapi.testclient import TestClient
 
@@ -26,6 +34,13 @@ def test_auth_routes_exist_and_behavior():
         # Login with non-existent user -> 401 (identifier present, wrong creds)
         r = client.post("/api/v1/auth/login", json={"email": "does-not-exist@example.com", "password": "badpass"})
         assert r.status_code == 401
+
+        # Alias register endpoint should work and return 201
+        alias_email = f"alias-{uuid.uuid4().hex[:8]}@example.com"
+        alias_name = "Alias User"
+        alias_password = "S3cureP@ss!"
+        r = client.post("/api/v1/register", json={"email": alias_email, "name": alias_name, "password": alias_password})
+        assert r.status_code == 201, r.text
 
         # Register a new user (unique email to avoid conflicts)
         email = f"test-{uuid.uuid4().hex[:8]}@example.com"

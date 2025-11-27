@@ -36,7 +36,7 @@
           "Auth"
         ],
         "summary": "Register a new user",
-        "description": "Register a new user account with name, email, and password. The password is stored as a salted hash and is never returned.",
+        "description": "Register a new user account with name, email, and password. Email validation is relaxed by default (presence of '@' only); set STRICT_EMAIL_VALIDATION=true to enforce strict RFC-style validation. The password is stored as a salted hash and is never returned.",
         "operationId": "register_api_v1_auth_register_post",
         "requestBody": {
           "content": {
@@ -1310,7 +1310,7 @@
               }
             ],
             "title": "Email",
-            "description": "Email string (relaxed; presence of '@' only unless STRICT_EMAIL_VALIDATION=true)"
+            "description": "Email string (relaxed; requires '@' unless STRICT_EMAIL_VALIDATION=true)"
           },
           "password": {
             "anyOf": [
@@ -1327,7 +1327,7 @@
         },
         "type": "object",
         "title": "LoginRequest",
-        "description": "Login payload for authentication.\n\nRequires email and password."
+        "description": "Login payload for authentication.\n\nRequires email and password. Email validation is relaxed by default (presence of '@' only);\nset STRICT_EMAIL_VALIDATION=true to enforce strict RFC validation."
       },
       "PlanExportRequest": {
         "properties": {
@@ -1368,7 +1368,7 @@
           "email": {
             "type": "string",
             "title": "Email",
-            "description": "Email string (relaxed; presence of '@' only unless STRICT_EMAIL_VALIDATION=true)"
+            "description": "Email string (relaxed; requires '@' unless STRICT_EMAIL_VALIDATION=true)"
           },
           "name": {
             "type": "string",
@@ -1388,7 +1388,7 @@
           "password"
         ],
         "title": "RegisterRequest",
-        "description": "Registration payload for a new user."
+        "description": "Registration payload for a new user.\n\nNote: Email validation is relaxed by default to allow broader formats (e.g., 'name@15404').\nWhen STRICT_EMAIL_VALIDATION=true, strict RFC-style validation is enforced."
       },
       "RoleAdjacencyResponse": {
         "properties": {
@@ -1655,7 +1655,7 @@
           "email": {
             "type": "string",
             "title": "Email",
-            "description": "User email string (relaxed; presence of '@' only unless STRICT_EMAIL_VALIDATION=true)"
+            "description": "User email string (relaxed; requires '@' unless STRICT_EMAIL_VALIDATION=true)"
           },
           "name": {
             "type": "string",
@@ -1683,9 +1683,8 @@
         "properties": {
           "email": {
             "type": "string",
-            "format": "email",
             "title": "Email",
-            "description": "User email address"
+            "description": "User email string (relaxed; requires '@' unless STRICT_EMAIL_VALIDATION=true)"
           },
           "name": {
             "type": "string",
